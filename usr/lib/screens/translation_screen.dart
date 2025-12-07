@@ -2,6 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/openai_service.dart';
 
+// ⚠️ SECURITY WARNING: 
+// In a production app, never store your API Key directly in the client code.
+// It can be extracted by reverse engineering.
+// Recommended: Use a backend (like Supabase Edge Functions) to handle the API call.
+const String _kOpenAIKey = 'YOUR_OPENAI_API_KEY_HERE'; 
+
 class TranslationScreen extends StatefulWidget {
   const TranslationScreen({super.key});
 
@@ -11,7 +17,6 @@ class TranslationScreen extends StatefulWidget {
 
 class _TranslationScreenState extends State<TranslationScreen> {
   final TextEditingController _inputController = TextEditingController();
-  final TextEditingController _apiKeyController = TextEditingController();
   final TextEditingController _baseUrlController = TextEditingController(text: 'https://api.openai.com/v1/chat/completions');
   final OpenAIService _openAIService = OpenAIService();
   
@@ -54,7 +59,7 @@ class _TranslationScreenState extends State<TranslationScreen> {
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _apiKeyController.text = prefs.getString('openai_api_key') ?? '';
+      // Only load Base URL and Model, Key is hardcoded
       _baseUrlController.text = prefs.getString('openai_base_url') ?? 'https://api.openai.com/v1/chat/completions';
       
       String? savedModel = prefs.getString('openai_model');
@@ -66,7 +71,6 @@ class _TranslationScreenState extends State<TranslationScreen> {
 
   Future<void> _saveSettings() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('openai_api_key', _apiKeyController.text.trim());
     await prefs.setString('openai_base_url', _baseUrlController.text.trim());
     await prefs.setString('openai_model', _selectedModel);
   }
@@ -74,7 +78,6 @@ class _TranslationScreenState extends State<TranslationScreen> {
   @override
   void dispose() {
     _inputController.dispose();
-    _apiKeyController.dispose();
     _baseUrlController.dispose();
     super.dispose();
   }
@@ -87,11 +90,15 @@ class _TranslationScreenState extends State<TranslationScreen> {
       return;
     }
 
-    if (_apiKeyController.text.trim().isEmpty) {
+    // Check if the developer has replaced the placeholder
+    if (_kOpenAIKey == 'YOUR_OPENAI_API_KEY_HERE' || _kOpenAIKey.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your OpenAI API Key in Settings')),
+        const SnackBar(
+          content: Text('Developer Error: API Key not configured in code.'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 5),
+        ),
       );
-      _showSettingsDialog();
       return;
     }
 
@@ -105,7 +112,7 @@ class _TranslationScreenState extends State<TranslationScreen> {
         text: _inputController.text,
         targetLanguage: _targetLanguage,
         sourceLanguage: _sourceLanguage,
-        apiKey: _apiKeyController.text.trim(),
+        apiKey: _kOpenAIKey, // Use the hardcoded key
         baseUrl: _baseUrlController.text.trim(),
         model: _selectedModel,
       );
@@ -140,6 +147,7 @@ class _TranslationScreenState extends State<TranslationScreen> {
         title: const Text('AI Translator'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
+          // Optional: Keep settings for Model/BaseURL, or remove if you want to hide everything
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () {
@@ -304,28 +312,12 @@ class _TranslationScreenState extends State<TranslationScreen> {
       builder: (context) => StatefulBuilder(
         builder: (context, setState) {
           return AlertDialog(
-            title: const Text('Settings'),
+            title: const Text('App Settings'),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('OpenAI API Key', style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 5),
-                  TextField(
-                    controller: _apiKeyController,
-                    decoration: const InputDecoration(
-                      hintText: 'sk-...',
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                    obscureText: true,
-                    onChanged: (value) {
-                      // Optional: Auto-save as user types or wait for close
-                    },
-                  ),
-                  const SizedBox(height: 15),
-                  
                   const Text('Model', style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 5),
                   DropdownButtonFormField<String>(
@@ -343,7 +335,7 @@ class _TranslationScreenState extends State<TranslationScreen> {
                     onChanged: (newValue) {
                       setState(() {
                         _selectedModel = newValue!;
-                        // Update the parent state as well so it persists after dialog closes
+                        // Update the parent state
                         this.setState(() {
                           _selectedModel = newValue!;
                         });
@@ -354,7 +346,7 @@ class _TranslationScreenState extends State<TranslationScreen> {
                   const SizedBox(height: 15),
                   
                   const Text('API Base URL (Optional)', style: TextStyle(fontWeight: FontWeight.bold)),
-                  const Text('Useful for proxies or custom endpoints', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  const Text('Useful for proxies', style: TextStyle(fontSize: 12, color: Colors.grey)),
                   const SizedBox(height: 5),
                   TextField(
                     controller: _baseUrlController,
