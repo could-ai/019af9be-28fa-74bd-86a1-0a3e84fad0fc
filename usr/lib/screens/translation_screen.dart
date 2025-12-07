@@ -11,10 +11,12 @@ class TranslationScreen extends StatefulWidget {
 class _TranslationScreenState extends State<TranslationScreen> {
   final TextEditingController _inputController = TextEditingController();
   final TextEditingController _apiKeyController = TextEditingController();
+  final TextEditingController _baseUrlController = TextEditingController(text: 'https://api.openai.com/v1/chat/completions');
   final OpenAIService _openAIService = OpenAIService();
   
   String _outputText = '';
   bool _isLoading = false;
+  String _selectedModel = 'gpt-3.5-turbo';
   
   // Language options
   final List<String> _languages = [
@@ -28,6 +30,15 @@ class _TranslationScreenState extends State<TranslationScreen> {
     'Russian',
     'Portuguese',
     'Italian',
+    'Arabic',
+    'Hindi',
+  ];
+
+  final List<String> _models = [
+    'gpt-3.5-turbo',
+    'gpt-4',
+    'gpt-4o',
+    'gpt-4-turbo',
   ];
 
   String _sourceLanguage = 'Auto Detect';
@@ -37,6 +48,7 @@ class _TranslationScreenState extends State<TranslationScreen> {
   void dispose() {
     _inputController.dispose();
     _apiKeyController.dispose();
+    _baseUrlController.dispose();
     super.dispose();
   }
 
@@ -50,8 +62,9 @@ class _TranslationScreenState extends State<TranslationScreen> {
 
     if (_apiKeyController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your OpenAI API Key')),
+        const SnackBar(content: Text('Please enter your OpenAI API Key in Settings')),
       );
+      _showSettingsDialog();
       return;
     }
 
@@ -66,6 +79,8 @@ class _TranslationScreenState extends State<TranslationScreen> {
         targetLanguage: _targetLanguage,
         sourceLanguage: _sourceLanguage,
         apiKey: _apiKeyController.text.trim(),
+        baseUrl: _baseUrlController.text.trim(),
+        model: _selectedModel,
       );
 
       setState(() {
@@ -101,7 +116,7 @@ class _TranslationScreenState extends State<TranslationScreen> {
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () {
-              _showApiKeyDialog();
+              _showSettingsDialog();
             },
           ),
         ],
@@ -211,10 +226,17 @@ class _TranslationScreenState extends State<TranslationScreen> {
                     ),
                   ),
                   child: _isLoading
-                      ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                      ? Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                            ),
+                            const SizedBox(width: 10),
+                            const Text('Translating...'),
+                          ],
                         )
                       : const Text('Translate', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 ),
@@ -249,36 +271,80 @@ class _TranslationScreenState extends State<TranslationScreen> {
     );
   }
 
-  void _showApiKeyDialog() {
+  void _showSettingsDialog() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('OpenAI API Key'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Please enter your OpenAI API Key to use the translation service.'),
-            const SizedBox(height: 10),
-            TextField(
-              controller: _apiKeyController,
-              decoration: const InputDecoration(
-                hintText: 'sk-...',
-                border: OutlineInputBorder(),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: const Text('Settings'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('OpenAI API Key', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 5),
+                  TextField(
+                    controller: _apiKeyController,
+                    decoration: const InputDecoration(
+                      hintText: 'sk-...',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    obscureText: true,
+                  ),
+                  const SizedBox(height: 15),
+                  
+                  const Text('Model', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 5),
+                  DropdownButtonFormField<String>(
+                    value: _selectedModel,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    items: _models.map((String value) {
+                      return DropdownMenuItem<String>(
+                        value: value,
+                        child: Text(value),
+                      );
+                    }).toList(),
+                    onChanged: (newValue) {
+                      setState(() {
+                        _selectedModel = newValue!;
+                        // Update the parent state as well so it persists after dialog closes
+                        this.setState(() {
+                          _selectedModel = newValue!;
+                        });
+                      });
+                    },
+                  ),
+                  
+                  const SizedBox(height: 15),
+                  
+                  const Text('API Base URL (Optional)', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const Text('Useful for proxies or custom endpoints', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  const SizedBox(height: 5),
+                  TextField(
+                    controller: _baseUrlController,
+                    decoration: const InputDecoration(
+                      hintText: 'https://api.openai.com/v1/chat/completions',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                  ),
+                ],
               ),
-              obscureText: true,
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Save'),
-          ),
-        ],
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Close'),
+              ),
+            ],
+          );
+        }
       ),
     );
   }

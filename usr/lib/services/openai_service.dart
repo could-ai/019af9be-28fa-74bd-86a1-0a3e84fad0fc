@@ -2,32 +2,36 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class OpenAIService {
-  // Default base URL, can be overridden if using a proxy
-  final String baseUrl = 'https://api.openai.com/v1/chat/completions';
-
   Future<String> translate({
     required String text,
     required String targetLanguage,
     required String apiKey,
     String? sourceLanguage,
+    String? baseUrl,
+    String? model,
   }) async {
     if (apiKey.isEmpty) {
       throw Exception('API Key cannot be empty');
     }
 
+    // Use provided base URL or default to OpenAI's official API
+    final String url = (baseUrl != null && baseUrl.isNotEmpty) 
+        ? baseUrl 
+        : 'https://api.openai.com/v1/chat/completions';
+
     try {
       final response = await http.post(
-        Uri.parse(baseUrl),
+        Uri.parse(url),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $apiKey',
         },
         body: jsonEncode({
-          'model': 'gpt-3.5-turbo',
+          'model': model ?? 'gpt-3.5-turbo',
           'messages': [
             {
               'role': 'system',
-              'content': 'You are a professional translator. Translate the user input directly without explanation.'
+              'content': 'You are a professional translator. Translate the user input directly without explanation. Maintain the original tone and formatting.'
             },
             {
               'role': 'user',
