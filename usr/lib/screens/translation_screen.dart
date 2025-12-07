@@ -2,11 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/openai_service.dart';
 
-// ⚠️ SECURITY WARNING: 
-// In a production app, never store your API Key directly in the client code.
-// It can be extracted by reverse engineering.
-// Recommended: Use a backend (like Supabase Edge Functions) to handle the API call.
+// ---------------------------------------------------------------------------
+// 🔑 API KEY 设置 / API KEY SETUP
+// ---------------------------------------------------------------------------
+// 请在这里填入您的 OpenAI API Key (以 sk- 开头)
+// 注意：将 Key 直接写在 App 里是不安全的，容易被反编译获取。
+// 仅建议在测试阶段或个人使用时这样操作。
+// 正式上线建议使用后端（如 Supabase Edge Functions）来隐藏 Key。
 const String _kOpenAIKey = 'YOUR_OPENAI_API_KEY_HERE'; 
+// ---------------------------------------------------------------------------
 
 class TranslationScreen extends StatefulWidget {
   const TranslationScreen({super.key});
@@ -92,11 +96,21 @@ class _TranslationScreenState extends State<TranslationScreen> {
 
     // Check if the developer has replaced the placeholder
     if (_kOpenAIKey == 'YOUR_OPENAI_API_KEY_HERE' || _kOpenAIKey.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Developer Error: API Key not configured in code.'),
-          backgroundColor: Colors.red,
-          duration: Duration(seconds: 5),
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('API Key 未配置'),
+          content: const Text(
+            '请在代码中配置您的 OpenAI API Key。\n\n'
+            '文件路径: lib/screens/translation_screen.dart\n'
+            '变量名: _kOpenAIKey'
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('好的'),
+            ),
+          ],
         ),
       );
       return;
