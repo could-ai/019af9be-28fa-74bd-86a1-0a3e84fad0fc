@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/openai_service.dart';
 
 class TranslationScreen extends StatefulWidget {
@@ -43,6 +44,32 @@ class _TranslationScreenState extends State<TranslationScreen> {
 
   String _sourceLanguage = 'Auto Detect';
   String _targetLanguage = 'English';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _apiKeyController.text = prefs.getString('openai_api_key') ?? '';
+      _baseUrlController.text = prefs.getString('openai_base_url') ?? 'https://api.openai.com/v1/chat/completions';
+      
+      String? savedModel = prefs.getString('openai_model');
+      if (savedModel != null && _models.contains(savedModel)) {
+        _selectedModel = savedModel;
+      }
+    });
+  }
+
+  Future<void> _saveSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('openai_api_key', _apiKeyController.text.trim());
+    await prefs.setString('openai_base_url', _baseUrlController.text.trim());
+    await prefs.setString('openai_model', _selectedModel);
+  }
 
   @override
   void dispose() {
@@ -293,6 +320,9 @@ class _TranslationScreenState extends State<TranslationScreen> {
                       isDense: true,
                     ),
                     obscureText: true,
+                    onChanged: (value) {
+                      // Optional: Auto-save as user types or wait for close
+                    },
                   ),
                   const SizedBox(height: 15),
                   
@@ -339,8 +369,11 @@ class _TranslationScreenState extends State<TranslationScreen> {
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Close'),
+                onPressed: () {
+                  _saveSettings(); // Save when closing
+                  Navigator.pop(context);
+                },
+                child: const Text('Save & Close'),
               ),
             ],
           );
